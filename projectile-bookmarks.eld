@@ -1,0 +1,1 @@
+("~/.config/emacs/" "~/.config/emacs/elpaca/repos/magit/" "~/.config/emacs/elpa/dash-2.19.1/" "~/.config/emacs/elpa/with-editor-3.4.2/" "~/Sources/csharp/DCP/digital-credit-paper-svc/" "~/.config/emacs/elpaca/repos/elpaca/")

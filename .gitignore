@@ -1,0 +1,39 @@
+# Emacs backup files
+*~
+.#*
+# Backup files
+*.elc
+# Desktop files
+.emacs.desktop
+.emacs.desktop.lock
+# Auto-save files
+auto-save-list/
+# Tramp files
+tramp/
+# Org-mode files
+.org-id-locations
+*_archive
+# Flymake files
+*_flymake.*
+# Eshell history and last directory
+/eshell/history
+/eshell/lastdir
+# ELPA packages (package management)
+elpa/
+# Cask packages (if using Cask)
+.cask/
+dist/
+# Flycheck temporary files
+flycheck_*.el
+# Server auth directory for Emacs server mode
+/server/
+# Projectile configuration files
+.projectile
+# Directory local variables file
+.dir-locals.el
+
+# Others
+elpaca/
+elpy/
+eshell/
+transient/
