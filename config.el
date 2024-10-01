@@ -25,7 +25,7 @@
   :diminish
   :hook (typescript-mode . company-mode)
   :custom
-  (company-idle-delay 0.5)  ; Increased delay before completion starts
+  (company-idle-delay 0.75)  ; Increased delay before completion starts
   (company-minimum-prefix-length 3)  ; Increased minimum prefix length
   (company-show-numbers t)
   (company-tooltip-align-annotations 't)
@@ -584,11 +584,11 @@
   :ensure nil  ; built-in for Emacs 29
   :config
   (add-to-list 'eglot-server-programs
-               '(csharp-mode . ("dotnet" "/Users/danebalia/Sources/omnisharp/OmniSharp.dll" "-lsp" "--hostPID" "1" "--encoding" "utf-8" "--server-gc")))
+               '(csharp-mode . ("dotnet" "/Users/danebalia/Sources/omnisharp/OmniSharp.dll" "-lsp" "--hostPID" "1" "--encoding" "utf-8" "--server-gc"  "--background-analysis" "true" "--cache-location" "/tmp/omnisharp-cache")))
   (setq eglot-connect-timeout 120)
-  (setq eglot-sync-connect nil)
+  (setq eglot-sync-connect t)
   (setq eglot-autoshutdown t)
-  (setq eglot-send-changes-idle-time 0.5)
+  (setq eglot-send-changes-idle-time 1.0)
   (defun my/eglot-actions ()
     (interactive)
     (call-interactively #'eglot-code-actions))
@@ -628,7 +628,7 @@
   (add-to-list 'eglot-server-programs
                '((typescript-mode) . ("typescript-language-server" "--stdio")))
   (setq eglot-connect-timeout 120)
-  (setq eglot-sync-connect nil)
+  (setq eglot-sync-connect t)
   (setq eglot-autoshutdown t)
   (setq eglot-send-changes-idle-time 0.5))
 
@@ -711,6 +711,9 @@
 ;; Performance optimizations
 (setq gc-cons-threshold 100000000)  ; Increase garbage collection threshold
 (setq read-process-output-max (* 1024 1024))  ; Increase read chunk size for process output
+
+;; Run garbage collection when Emacs loses focus
+(add-hook 'focus-out-hook #'garbage-collect)
 
 (use-package perspective
   :custom
