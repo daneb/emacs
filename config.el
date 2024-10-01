@@ -11,22 +11,54 @@
   :hook (dired-mode . (lambda () (all-the-icons-dired-mode t))))
 
 (setq backup-directory-alist '((".*" . "~/.local/share/Trash/files")))
+(setq auto-save-file-name-transforms
+      `((".*" ,(concat user-emacs-directory "auto-save/") t)))
+
+(setq version-control t     ;; Use version numbers for backups.
+      kept-new-versions 10  ;; Number of newest versions to keep.
+      kept-old-versions 0   ;; Number of oldest versions to keep.
+      delete-old-versions t ;; Don't ask to delete excess backup versions.
+      backup-by-copying t)  ;; Copy all files, don't rename them.
+(setq vc-make-backup-files t)
 
 (use-package company
-  :defer 2
   :diminish
+  :hook (typescript-mode . company-mode)
   :custom
-  (company-begin-commands '(self-insert-command))
-  (company-idle-delay .1)
-  (company-minimum-prefix-length 2)
+  (company-idle-delay 0.5)  ; Increased delay before completion starts
+  (company-minimum-prefix-length 3)  ; Increased minimum prefix length
   (company-show-numbers t)
   (company-tooltip-align-annotations 't)
+  :config
   (global-company-mode t))
 
 (use-package company-box
   :after company
   :diminish
   :hook (company-mode . company-box-mode))
+
+;; Debugging helpers
+(defun my/eglot-capabilites ()
+  "Print Eglot server capabilities for the current buffer."
+  (interactive)
+  (if eglot--managed-mode
+      (message "Eglot server capabilities: %S" 
+               (eglot--server-capable :completionProvider))
+    (message "Eglot is not active in this buffer.")))
+
+(use-package company-quickhelp
+  :after company
+  :config
+  (company-quickhelp-mode))
+
+(defun my/company-diag ()
+  "Print Company diagnostics for the current buffer."
+  (interactive)
+  (if (bound-and-true-p company-mode)
+      (message "Company Backends: %S" company-backends)
+    (message "Company mode is not active in this buffer.")))
+
+(setq completion-category-overrides '((eglot (styles basic))))
 
 (use-package dashboard
   :ensure t
@@ -136,33 +168,63 @@
   :diminish
   :init (global-flycheck-mode))
 
+;; Set default font
 (set-face-attribute 'default nil
-  :font "JetBrains Mono"
-  :height 110
-  :weight 'medium)
+                    :family "JetBrains Mono"
+                    :height 140
+                    :weight 'normal
+                    :width 'normal)
+
+;; Set variable-pitch font
 (set-face-attribute 'variable-pitch nil
-  :font "Hack Nerd Font Mono"
-  :height 120
-  :weight 'medium)
+                    :family "Cantarell"
+                    :height 150
+                    :weight 'normal
+                    :width 'normal)
+
+;; Set fixed-pitch font
 (set-face-attribute 'fixed-pitch nil
-  :font "JetBrains Mono"
-  :height 110
-  :weight 'medium)
-;; Makes commented text and keywords italics.
-;; This is working in emacsclient but not emacs.
-;; Your font must have an italic face available.
+                    :family "JetBrains Mono"
+                    :height 140
+                    :weight 'normal
+                    :width 'normal)
+
+;; Set font for code
 (set-face-attribute 'font-lock-comment-face nil
-  :slant 'italic)
+                    :slant 'italic
+                    :foreground "#8B8B8B")
 (set-face-attribute 'font-lock-keyword-face nil
-  :slant 'italic)
+                    :slant 'italic
+                    :weight 'bold)
 
-;; This sets the default font on all graphical frames created after restarting Emacs.
-;; Does the same thing as 'set-face-attribute default' above, but emacsclient fonts
-;; are not right unless I also add this method of setting the default font.
-(add-to-list 'default-frame-alist '(font . "JetBrains Mono"))
+;; Ensure unicode fonts are used
+(use-package unicode-fonts
+  :ensure t
+  :config
+  (unicode-fonts-setup))
 
-;; Uncomment the following line if line spacing needs adjusting.
-(setq-default line-spacing 0.12)
+;; Ligatures (if you're using Emacs 27 or later)
+(use-package ligature
+  :ensure t
+  :config
+  ;; Enable ligatures in programming modes
+  (ligature-set-ligatures 'prog-mode '("www" "**" "***" "**/" "*>" "*/" "\\\\" "\\\\\\" "{-" "::"
+                                       ":::" ":=" "!!" "!=" "!==" "-}" "----" "-->" "->" "->>"
+                                       "-<" "-<<" "-~" "#{" "#[" "##" "###" "####" "#(" "#?" "#_"
+                                       "#_(" ".-" ".=" ".." "..<" "..." "?=" "??" ";;" "/*" "/**"
+                                       "/=" "/==" "/>" "//" "///" "&&" "||" "||=" "|=" "|>" "^=" "$>"
+                                       "++" "+++" "+>" "=:=" "==" "===" "==>" "=>" "=>>" "<="
+                                       "=<<" "=/=" ">-" ">=" ">=>" ">>" ">>-" ">>=" ">>>" "<*"
+                                       "<*>" "<|" "<|>" "<$" "<$>" "<!--" "<-" "<--" "<->" "<+"
+                                       "<+>" "<=" "<==" "<=>" "<=<" "<>" "<<" "<<-" "<<=" "<<<"
+                                       "<~" "<~~" "</" "</>" "~@" "~-" "~>" "~~" "~~>" "%%"))
+  (global-ligature-mode 't))
+
+;; Scale text for better readability
+(use-package default-text-scale
+  :ensure t
+  :config
+  (default-text-scale-mode))
 
 (global-set-key (kbd "C-=") 'text-scale-increase)
 (global-set-key (kbd "C--") 'text-scale-decrease)
@@ -205,6 +267,16 @@
     "b s" '(basic-save-buffer :wk "Save buffer")
     "b S" '(save-some-buffers :wk "Save multiple buffers")
     "b w" '(bookmark-save :wk "Save current bookmarks to bookmark file"))
+  
+(db/leader-keys
+    ;; Eglot binding (just the main entry point)
+    "c" '(eglot-hydra/body :wk "Eglot menu"))
+
+    ;; Add which-key description for the main Eglot entry point
+    (with-eval-after-load 'which-key
+    (which-key-add-key-based-replacements
+        "SPC c" "Eglot menu"))
+
 
   (db/leader-keys
     "d" '(:ignore t :wk "Dired")
@@ -242,7 +314,9 @@
     "f l" '(counsel-locate :wk "Locate a file")
     "f r" '(counsel-recentf :wk "Find recent files")
     "f u" '(sudo-edit-find-file :wk "Sudo find file")
-    "f U" '(sudo-edit :wk "Sudo edit file"))
+    "f U" '(sudo-edit :wk "Sudo edit file")
+    "f f" '(counsel-projectile-find-file :wk "find file in project")
+    "f s" '(counsel-projectile-rg :wk "search text in project"))
 
   (db/leader-keys
     "g" '(:ignore t :wk "Git")
@@ -302,6 +376,7 @@
     "h w" '(where-is :wk "Prints keybinding for command if set")
     "h x" '(describe-command :wk "Display full documentation for command"))
 
+
   (db/leader-keys
     "m" '(:ignore t :wk "Org")
     "m a" '(org-agenda :wk "Org agenda")
@@ -329,7 +404,16 @@
   ;; projectile-command-map already has a ton of bindings
   ;; set for us, so no need to specify each individually.
   (db/leader-keys
-    "p" '(projectile-command-map :wk "Projectile"))
+    "p" '(:ignore t :wk "Projectile")
+    "p p" '(projectile-command-map :wk "projectile map")
+    "p a" '(my/projectile-add-project :which-key "add project")
+    "p f" '(projectile-find-file :which-key "find file")
+    "p d" '(projectile-find-dir :which-key "find directory")
+    "p b" '(projectile-switch-to-buffer :which-key "switch buffer")
+    "p c" '(projectile-compile-project :which-key "compile")
+    "p k" '(projectile-kill-buffers :which-key "kill buffers")
+    "p s" '(my/projectile-switch-project-with-completion :which-key "switch projects"))
+
 
   (db/leader-keys
     "s" '(:ignore t :wk "Search")
@@ -380,6 +464,36 @@
 (use-package transient)
 (use-package magit :after transient)
 
+;; Create a hydra menu for Eglot actions
+(use-package hydra
+  :ensure t
+  :config
+  (defhydra eglot-hydra (:color blue :hint nil)
+    "
+   ^Code Actions^          ^Go To^                ^Workspace^
+  ^^^^^^^^-------------------------------------------------------
+   _a_: Code actions       _d_: Definition        _p_: Find project
+   _r_: Rename             _i_: Implementation    _s_: Sync project
+   _f_: Format buffer      _t_: Type definition   _S_: Shutdown server
+   _h_: Hover              _n_: Next error        _R_: Reconnect
+   _o_: Organize imports   _N_: Previous error    _q_: Quit
+  "
+    ("a" my/eglot-actions)
+    ("r" my/eglot-rename)
+    ("f" eglot-format-buffer)
+    ("h" eldoc)
+    ("o" eglot-code-action-organize-imports)
+    ("d" xref-find-definitions)
+    ("i" eglot-find-implementation)
+    ("t" eglot-find-typeDefinition)
+    ("n" flymake-goto-next-error)
+    ("N" flymake-goto-prev-error)
+    ("p" project-find-file)
+    ("s" eglot-reconnect)
+    ("S" eglot-shutdown)
+    ("R" eglot-reconnect)
+    ("q" nil "quit" :color blue)))
+
 (use-package hl-todo
   :hook ((org-mode . hl-todo-mode)
          (prog-mode . hl-todo-mode))
@@ -400,6 +514,8 @@
     (counsel-mode)
     (setq ivy-initial-inputs-alist nil)) ;; removes starting ^ regex in M-x
 
+(use-package counsel-projectile :ensure t)
+
 (use-package ivy
   :bind
   ;; ivy-resume resumes the last Ivy-based completion.
@@ -410,6 +526,8 @@
   (setq ivy-use-virtual-buffers t)
   (setq ivy-count-format "(%d/%d) ")
   (setq enable-recursive-minibuffers t)
+  (when (executable-find "fd")
+  (setq counsel-file-jump-args (split-string "-H -E .git -type f")))
   :config
   (ivy-mode))
 
@@ -450,6 +568,96 @@
   :config
   ;; Activate the virtual environment you want to use
   (pyvenv-activate "~/emacs-python-venvs/emacs-elpy-env"))
+
+(use-package csharp-mode
+  :ensure nil  ; built-in package, no need to ensure
+  :hook ((csharp-mode . eglot-ensure)
+         (csharp-mode . (lambda ()
+                          (setq indent-tabs-mode nil)
+                          (setq c-basic-offset 4)
+                          (setq tab-width 4)))
+         (csharp-mode . tree-sitter-mode)
+         (csharp-mode . company-mode)))
+
+;; Load eglot (built-in for Emacs 29)
+(use-package eglot
+  :ensure nil  ; built-in for Emacs 29
+  :config
+  (add-to-list 'eglot-server-programs
+               '(csharp-mode . ("dotnet" "/Users/danebalia/Sources/omnisharp/OmniSharp.dll" "-lsp" "--hostPID" "1" "--encoding" "utf-8" "--server-gc")))
+  (setq eglot-connect-timeout 120)
+  (setq eglot-sync-connect nil)
+  (setq eglot-autoshutdown t)
+  (setq eglot-send-changes-idle-time 0.5)
+  (defun my/eglot-actions ()
+    (interactive)
+    (call-interactively #'eglot-code-actions))
+  
+  (defun my/eglot-rename ()
+    (interactive)
+    (call-interactively #'eglot-rename)))
+
+;; Add these to csharp-mode-hook for automatic diagnostics
+(add-hook 'csharp-mode-hook
+          (lambda ()
+            (my/eglot-capabilites)
+            (my/company-diag)))
+
+;; Enable tree-sitter for csharp-mode
+(add-hook 'csharp-mode-hook #'tree-sitter-mode)
+
+;; TypeScript mode
+(use-package typescript-mode
+  :ensure t
+  :mode "\\.ts\\'"
+  :hook ((typescript-mode . eglot-ensure)
+         (typescript-mode . (lambda ()
+                              (setq indent-tabs-mode nil)
+                              (setq typescript-indent-level 2)
+                              (setq tab-width 2)))
+         (typescript-mode . tree-sitter-mode)
+         (typescript-mode . company-mode))
+  :config
+  (require 'dap-node)
+  (dap-node-setup))
+
+;; Eglot configuration for TypeScript
+(use-package eglot
+  :ensure nil  ; built-in for Emacs 29
+  :config
+  (add-to-list 'eglot-server-programs
+               '((typescript-mode) . ("typescript-language-server" "--stdio")))
+  (setq eglot-connect-timeout 120)
+  (setq eglot-sync-connect nil)
+  (setq eglot-autoshutdown t)
+  (setq eglot-send-changes-idle-time 0.5))
+
+;; Optional: Prettier for formatting
+(use-package prettier-js
+  :ensure t
+  :hook (typescript-mode . prettier-js-mode))
+
+;; Optional: Add TypeScript debugging support
+(use-package dap-mode
+  :ensure t
+  :after lsp-mode
+  :config
+  (dap-auto-configure-mode))
+
+;; Key bindings (similar to your C# setup)
+(add-hook 'typescript-mode-hook
+          (lambda ()
+            (local-set-key (kbd "C-c a") 'eglot-code-actions)
+            (local-set-key (kbd "C-c r") 'eglot-rename)
+            (local-set-key (kbd "C-c f") 'eglot-format)))
+
+;; Add diagnostics hooks (similar to your C# setup)
+(add-hook 'typescript-mode-hook
+          (lambda ()
+            (when (fboundp 'my/eglot-capabilites)
+              (my/eglot-capabilites))
+            (when (fboundp 'my/company-diag)
+              (my/company-diag))))
 
 (global-set-key [escape] 'keyboard-escape-quit)
 
@@ -500,6 +708,10 @@
 
 (require 'org-tempo)
 
+;; Performance optimizations
+(setq gc-cons-threshold 100000000)  ; Increase garbage collection threshold
+(setq read-process-output-max (* 1024 1024))  ; Increase read chunk size for process output
+
 (use-package perspective
   :custom
   ;; NOTE! I have also set 'SCP =' to open the perspective menu.
@@ -523,8 +735,26 @@
 (add-hook 'kill-emacs-hook #'persp-state-save)
 
 (use-package projectile
+  :init
+  (setq projectile-project-search-path '("~/Sources"))  ; Set your default project search paths
+  (setq projectile-switch-project-action #'neotree-projectile-action)
+  (setq projectile-completion-system 'ivy)
   :config
   (projectile-mode 1))
+
+ ;; Custom function to add a new project
+  (defun my/projectile-add-project ()
+    "Add a new project to Projectile."
+    (interactive)
+    (let ((project-dir (read-directory-name "Add project: ")))
+      (projectile-add-known-project project-dir)
+      (projectile-switch-project-by-name project-dir)))
+
+  ;; Custom function to switch project with completion
+  (defun my/projectile-switch-project-with-completion ()
+    "Switch to a project using completion."
+    (interactive)
+    (projectile-switch-project))
 
 (use-package rainbow-delimiters
   :hook ((emacs-lisp-mode . rainbow-delimiters-mode)
@@ -533,6 +763,12 @@
 (use-package rainbow-mode
   :diminish
   :hook org-mode prog-mode)
+
+(use-package rg
+  :ensure t
+  :config
+  (require 'rg)
+   (rg-enable-default-bindings))
 
 (delete-selection-mode 1)    ;; You can select text and delete it by typing.
 (electric-indent-mode -1)    ;; Turn off the weird indenting that Emacs does by default.
@@ -620,12 +856,25 @@
 
 (use-package tldr)
 
+;; Install and configure tree-sitter
+(use-package tree-sitter
+  :ensure t
+  :config
+  (global-tree-sitter-mode)
+  (add-hook 'tree-sitter-after-on-hook #'tree-sitter-hl-mode))
+
+(use-package tree-sitter-langs
+  :ensure t
+  :after tree-sitter)
+
 (use-package which-key
   :init
     (which-key-mode 1)
   :diminish
   :config
-  (setq which-key-side-window-location 'bottom
+  (setq which-key-idle-delay 0.3
+        which-key-prefix-prefix "◉ "
+        which-key-side-window-location 'bottom
 	  which-key-sort-order #'which-key-key-order-alpha
 	  which-key-allow-imprecise-window-fit nil
 	  which-key-sort-uppercase-first nil
