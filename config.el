@@ -12,7 +12,7 @@
 
 (setq backup-directory-alist '((".*" . "~/.local/share/Trash/files")))
 (setq auto-save-file-name-transforms
-      `((".*" ,(concat user-emacs-directory "auto-save/") t)))
+      `((".*" ,(concat user-emacs-directory "~/.config/emacs/auto-save/") t)))
 
 (setq version-control t     ;; Use version numbers for backups.
       kept-new-versions 10  ;; Number of newest versions to keep.
@@ -68,18 +68,20 @@
   (setq dashboard-set-file-icons t)
   (setq dashboard-banner-logo-title "Emacs Is More Than A Text Editor!")
   ;;(setq dashboard-startup-banner 'logo) ;; use standard emacs logo as banner
-  (setq dashboard-startup-banner "~/.config/emacs/images/emacs-dash.png")  ;; use custom image as banner
+  (setq dashboard-startup-banner "~/.config/emacs/images/emacs-custom-dash.png")  ;; use custom image as banner
   (setq dashboard-center-content nil) ;; set to 't' for centered content
+  (setq dashboard-projects-backend 'projectile)
   (setq dashboard-items '((recents . 5)
                           (agenda . 5 )
                           (bookmarks . 3)
-                          (projects . 3)
+                          (projects . 10)
                           (registers . 3)))
   :custom
   (dashboard-modify-heading-icons '((recents . "file-text")
 				      (bookmarks . "book")))
   :config
-  (dashboard-setup-startup-hook))
+  (dashboard-setup-startup-hook)
+  :after projectile)
 
 (use-package diminish)
 
@@ -268,7 +270,7 @@
     "b S" '(save-some-buffers :wk "Save multiple buffers")
     "b w" '(bookmark-save :wk "Save current bookmarks to bookmark file"))
   
-(db/leader-keys
+   (db/leader-keys
     ;; Eglot binding (just the main entry point)
     "c" '(eglot-hydra/body :wk "Eglot menu"))
 
@@ -278,14 +280,20 @@
         "SPC c" "Eglot menu"))
 
 
+  ;; Key bindings for debugging
   (db/leader-keys
-    "d" '(:ignore t :wk "Dired")
-    "d d" '(dired :wk "Open dired")
-    "d j" '(dired-jump :wk "Dired jump to current")
-    "d n" '(neotree-dir :wk "Open directory in neotree")
-    "d p" '(peep-dired :wk "Peep-dired"))
+   "d d" '(dap-debug :wk "Start debugging")
+   "d n" '(dap-next :wk "Next")
+   "d i" '(dap-step-in :wk "Step in")
+   "d o" '(dap-step-out :wk "Step out")
+   "d c" '(dap-continue :wk "Continue")
+   "d r" '(dap-restart :wk "Restart")
+   "d l" '(dap-ui-locals :wk "List locals")
+   "d q" '(dap-disconnect :wk "Disconnect")
+   "d b" '(dap-breakpoint-toggle :wk "Toggle breakpoint"))
 
-  (db/leader-keys
+
+   (db/leader-keys
     "e" '(:ignore t :wk "Eshell/Evaluate")
     "e b" '(eval-buffer :wk "Evaluate elisp in buffer")
     "e d" '(eval-defun :wk "Evaluate defun containing or after point")
@@ -431,7 +439,9 @@
     "t o" '(org-mode :wk "Toggle org mode")
     "t r" '(rainbow-mode :wk "Toggle rainbow mode")
     "t t" '(visual-line-mode :wk "Toggle truncated lines")
-    "t v" '(vterm-toggle :wk "Toggle vterm"))
+    "t v" '(vterm-toggle :wk "Toggle vterm")
+    "t n" '(create-new-vterm :wk "New vterm")
+    "t s" '(switch-to-vterm-buffer :wk "Switch vterm buffer"))
 
   (db/leader-keys
     "w" '(:ignore t :wk "Windows")
@@ -451,6 +461,14 @@
     "w J" '(buf-move-down :wk "Buffer move down")
     "w K" '(buf-move-up :wk "Buffer move up")
     "w L" '(buf-move-right :wk "Buffer move right"))
+
+   (db/leader-keys
+     "z" '(:ignore t :wk "Dired")
+     "z d" '(dired :wk "Open dired")
+     "z j" '(dired-jump :wk "Dired jump to current")
+     "z n" '(neotree-dir :wk "Open directory in neotree")
+     "z p" '(peep-dired :wk "Peep-dired"))
+
 )
 
 (use-package git-timemachine
@@ -577,7 +595,9 @@
                           (setq c-basic-offset 4)
                           (setq tab-width 4)))
          (csharp-mode . tree-sitter-mode)
-         (csharp-mode . company-mode)))
+         (csharp-mode . company-mode)
+         (csharp-mode . dap-mode)
+         (csharp-mode . dap-ui-mode)))
 
 ;; Load eglot (built-in for Emacs 29)
 (use-package eglot
@@ -605,6 +625,42 @@
 
 ;; Enable tree-sitter for csharp-mode
 (add-hook 'csharp-mode-hook #'tree-sitter-mode)
+
+;; DAP mode for debugging
+(use-package dap-mode
+  :ensure t
+  :after (eglot)  ; Changed from lsp-mode to eglot
+  :config
+  (dap-auto-configure-mode)
+  (require 'dap-netcore))
+  
+;; Configure dap-netcore
+  (setq dap-netcore-install-dir "/Users/danebalia/.config/emacs/netcoredbg/")
+
+  ;; Explicitly set the debugger command to bypass the installation check
+  (defun my/dap-netcore-debugger-path ()
+    (let ((netcoredbg-path (expand-file-name "netcoredbg" dap-netcore-install-dir)))
+      (if (file-executable-p netcoredbg-path)
+          netcoredbg-path
+        (error "Netcoredbg executable not found at %s" netcoredbg-path))))
+
+  (advice-add 'dap-netcore--debugger-cmd :override #'my/dap-netcore-debugger-path)
+
+ ;; Function to set up debug configuration
+  (defun my/dap-netcore-setup ()
+    (interactive)
+    (let* ((project-dir (project-root (project-current)))
+           (dll-name (file-name-nondirectory (directory-file-name project-dir)))
+           (dll-path (expand-file-name (format "bin/Debug/net8.0/%s.dll" dll-name) project-dir)))
+      (dap-debug
+       (list :type "coreclr"
+             :request "launch"
+             :name "NetCoreDbg::Launch"
+             :console "integratedTerminal"
+             :stopAtEntry t
+             :internalConsoleOptions "neverOpen"
+             :cwd project-dir
+             :program dll-path))))
 
 ;; TypeScript mode
 (use-package typescript-mode
@@ -637,13 +693,6 @@
   :ensure t
   :hook (typescript-mode . prettier-js-mode))
 
-;; Optional: Add TypeScript debugging support
-(use-package dap-mode
-  :ensure t
-  :after lsp-mode
-  :config
-  (dap-auto-configure-mode))
-
 ;; Key bindings (similar to your C# setup)
 (add-hook 'typescript-mode-hook
           (lambda ()
@@ -658,6 +707,10 @@
               (my/eglot-capabilites))
             (when (fboundp 'my/company-diag)
               (my/company-diag))))
+
+(use-package koopa-mode :ensure t
+  :init 
+  (add-to-list 'auto-mode-alist '("\\.ps1\\'" . koopa-mode)))
 
 (global-set-key [escape] 'keyboard-escape-quit)
 
@@ -842,6 +895,27 @@
                   (reusable-frames . visible)
                   (window-height . 0.4))))
 
+
+(defun create-new-vterm ()
+  "Create a new vterm buffer."
+  (interactive)
+  (let* ((buffer-name (format "vterm-%s" (random 10000)))
+         (buffer (get-buffer-create buffer-name)))
+    (with-current-buffer buffer
+      (vterm-mode))
+    (switch-to-buffer buffer)))
+
+(defun switch-to-vterm-buffer ()
+  "Switch to an existing vterm buffer or create a new one."
+  (interactive)
+  (let* ((vterm-buffers (--filter (eq (buffer-local-value 'major-mode it) 'vterm-mode)
+                                  (buffer-list)))
+         (buffer-names (mapcar #'buffer-name vterm-buffers)))
+    (if vterm-buffers
+        (switch-to-buffer
+         (completing-read "Switch to vterm buffer: " buffer-names))
+      (create-new-vterm))))
+
 (use-package sudo-edit)
 
 (add-to-list 'custom-theme-load-path "~/.config/emacs/themes/")
@@ -869,6 +943,14 @@
 (use-package tree-sitter-langs
   :ensure t
   :after tree-sitter)
+
+(defun clean-powershell-output ()
+  "Clean up PowerShell output with ANSI color codes."
+  (interactive)
+  (let ((inhibit-read-only t))
+    (goto-char (point-min))
+    (while (re-search-forward "\e\\[[0-9;]*[mGKHF]" nil t)
+      (replace-match ""))))
 
 (use-package which-key
   :init
